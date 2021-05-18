@@ -72,6 +72,12 @@ typings/
 .env
 .env.test
 
+# prisma migration files
+prisma/migrations/
+
+# generated nexus ts file
+src/generated/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 
