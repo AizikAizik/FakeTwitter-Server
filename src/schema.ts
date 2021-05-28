@@ -66,11 +66,11 @@ const Query = objectType({
       resolve: (_parent, args, context: Context) => {
         const or = args.searchString
           ? {
-            OR: [
-              { title: { contains: args.searchString } },
-              { content: { contains: args.searchString } },
-            ],
-          }
+              OR: [
+                { title: { contains: args.searchString } },
+                { content: { contains: args.searchString } },
+              ],
+            }
           : {}
 
         return context.prisma.post.findMany({
@@ -87,9 +87,9 @@ const Query = objectType({
 
     t.list.field('users', {
       type: 'User',
-      resolve: (parent, args, ctx: Context) =>{
-        return ctx.prisma.user.findMany();
-      }
+      resolve: (parent, args, ctx: Context) => {
+        return ctx.prisma.user.findMany()
+      },
     })
 
     t.list.field('draftsByUser', {
@@ -190,6 +190,57 @@ const Mutation = objectType({
           },
         })
       },
+    })
+
+    // mutation for creating a profile
+    t.field('createProfile', {
+      type: 'Profile',
+      args: {
+        bio: stringArg(),
+        location: stringArg(),
+        website: stringArg(),
+        avatar: stringArg()
+      },
+      resolve: (_, args, context: Context) =>{
+        const userId = getUserId(context);
+        if(!userId){
+          throw new Error('couldn\'t authenticate user')
+        }
+        return context.prisma.profile.create({
+          data: {
+            ...args,
+            User: {
+              connect: {id: Number(userId)}
+            }
+          }
+        })
+      }
+    })
+
+    // mutation for updating a profile
+    t.field('updateProfile', {
+      type: 'Profile',
+      args: {
+        id: intArg(),
+        bio: stringArg(),
+        location: stringArg(),
+        website: stringArg(),
+        avatar: stringArg()
+      },
+      resolve: (_, {id, ...args}, context: Context) =>{
+        const userId = getUserId(context);
+        if(!userId){
+          throw new Error('couldn\'t authenticate user')
+        }
+        return context.prisma.profile.update({
+          data: {
+            ...args
+          },
+          where: {
+            id: Number(id)
+          }
+        })
+      }
     })
 
     t.field('togglePublishPost', {
@@ -335,12 +386,56 @@ const AuthPayload = objectType({
   },
 })
 
+const Profile = objectType({
+  name: 'Profile',
+  definition(t) {
+    t.nonNull.int('id')
+    t.nonNull.field('createdAt', { type: 'DateTime' })
+    t.nonNull.field('updatedAt', { type: 'DateTime' })
+    t.string('bio')
+    t.string('location')
+    t.string('website')
+    t.string('avatar')
+    t.field('User', {
+      type: 'User',
+      resolve: (parent, _, context: Context) => {
+        return context.prisma.profile
+          .findUnique({
+            where: { id: parent.id || undefined },
+          })
+          .User()
+      },
+    })
+  },
+})
+
+const Tweet = objectType({
+  name: 'Tweet',
+  definition(t) {
+    t.nonNull.int('id')
+    t.nonNull.string('content')
+    t.nonNull.field('createdAt', { type: 'DateTime' })
+    t.field('author', {
+      type: 'User',
+      resolve: (parent, _, context: Context) => {
+        return context.prisma.tweet
+          .findUnique({
+            where: { id: parent.id || undefined },
+          })
+          .author()
+      },
+    })
+  },
+})
+
 const schemaWithoutPermissions = makeSchema({
   types: [
     Query,
     Mutation,
     Post,
     User,
+    Profile,
+    Tweet,
     AuthPayload,
     UserUniqueInput,
     UserCreateInput,
